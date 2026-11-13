@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download today's wallpaper
-        run: python3 bing_wallpaper.py 1 -o pics
+        run: python3 bing_wallpaper.py 8 -o pics
 
       - name: Refresh latest.jpg
         run: |
