@@ -2,7 +2,7 @@ name: Bing Daily Wallpaper
 
 on:
   schedule:
-    - cron: "15 0 * * *"   # UTC 00:15 = 北京时间 08:15，Bing 当日图已更新
+    - cron: "15 0 * * 0"   # 每周日 UTC 00:15 = 北京时间周日 08:15
   workflow_dispatch:        # 也可以在 Actions 页面手动触发
 
 permissions:
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download today's wallpaper
-        run: python3 bing_wallpaper.py 8 -o pics
+        run: python3 bing_wallpaper.py 8 -o pics   # 拉最近 8 天（覆盖上周 7 天 + 1 天冗余，已下载的自动跳过）
 
       - name: Refresh latest.jpg
         run: |
@@ -31,6 +31,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes (already up to date)"
           else
-            git commit -m "Bing wallpaper $(date -u +%F)"
+            git commit -m "Bing wallpapers week of $(date -u +%F)"
             git push
           fi
