@@ -2,8 +2,8 @@ name: Bing Daily Wallpaper
 
 on:
   schedule:
-    - cron: "15 0 * * 0"   # 每周日 UTC 00:15 = 北京时间周日 08:15
-  workflow_dispatch:        # 也可以在 Actions 页面手动触发
+    - cron: "15 0 * * 0"   # Sundays 00:15 UTC
+  workflow_dispatch:        # can also be triggered manually from the Actions tab
 
 permissions:
   contents: write
@@ -14,8 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download today's wallpaper
-        run: python3 bing_wallpaper.py 8 -o pics   # 拉最近 8 天（覆盖上周 7 天 + 1 天冗余，已下载的自动跳过）
+      - name: Download the past week's wallpapers
+        run: python3 bing_wallpaper.py 8 -o pics   # last 8 days (past week + 1 spare day; existing files are skipped)
 
       - name: Install Pillow
         run: pip install --quiet pillow
