@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""生成缩略图并刷新 README 图库区。
+"""Generate thumbnails and refresh the README gallery section.
 
-由 GitHub Actions 在下载壁纸后调用，也可本地手动运行：
+Called by GitHub Actions after the wallpapers are downloaded; can also
+be run manually:
     python3 make_gallery.py
 
-- 缩略图放 thumbs/（宽 400px），只给还没有缩略图的图片生成
-- README.md 中 <!-- GALLERY-START --> 与 <!-- GALLERY-END --> 之间的
-  内容会被整段重写：
-  * 最近一个月：直接展开成缩略图表格（每行 4 张，点图看原图）
-  * 更早的月份：按月折叠成 <details> 区块，点月份标题才展开，
-    避免 README 越攒越长、打开越来越慢
+- Thumbnails go to thumbs/ (400px wide); only images without one are
+  processed
+- The section of README.md between <!-- GALLERY-START --> and
+  <!-- GALLERY-END --> is rewritten every run:
+  * the latest month is shown expanded as a thumbnail grid
+    (4 per row, click a thumbnail to open the full image)
+  * earlier months are folded into <details> blocks, expanded only
+    when the month title is clicked, so the README stays fast to
+    open no matter how many images accumulate
 """
+import calendar
 from pathlib import Path
 from urllib.parse import quote
 
@@ -23,6 +28,10 @@ README = ROOT / "README.md"
 START, END = "<!-- GALLERY-START -->", "<!-- GALLERY-END -->"
 THUMB_W = 400
 COLS = 4
+
+
+def month_label(key: str) -> str:
+    return f"{calendar.month_name[int(key[4:])]} {key[:4]}"
 
 
 def table_for(files) -> str:
@@ -59,24 +68,24 @@ def main() -> int:
     keys = sorted(months, reverse=True)
 
     if not keys:
-        gallery = "_暂无图片_"
+        gallery = "_No images yet_"
     else:
         parts = []
         latest = keys[0]
         parts.append(
-            f"### {latest[:4]} 年 {int(latest[4:])} 月（最近一个月）\n\n"
+            f"### {month_label(latest)} (latest month)\n\n"
             + table_for(months[latest]))
         for k in keys[1:]:
-            label = f"{k[:4]} 年 {int(k[4:])} 月 · 共 {len(months[k])} 张"
+            label = f"{month_label(k)} · {len(months[k])} images"
             parts.append(
-                f"<details>\n<summary>{label}（点击展开）</summary>\n\n"
+                f"<details>\n<summary>{label} (click to expand)</summary>\n\n"
                 + table_for(months[k]) + "\n\n</details>")
         gallery = "\n\n".join(parts)
 
     text = README.read_text(encoding="utf-8")
     pre, sep, rest = text.partition(START)
     if not sep:
-        raise SystemExit("README.md 里找不到 GALLERY 标记")
+        raise SystemExit("GALLERY markers not found in README.md")
     _, _, post = rest.partition(END)
     README.write_text(pre + START + "\n\n" + gallery + "\n\n" + END + post,
                       encoding="utf-8")

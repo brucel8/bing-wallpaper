@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""下载必应每日壁纸（超清 4K，失败回退 1080p）。
+"""Download Bing daily wallpapers (4K UHD, falls back to 1080p).
 
-用法:
-    python bing_wallpaper.py            # 今天 1 张
-    python bing_wallpaper.py 8          # 最近 8 天
+Usage:
+    python bing_wallpaper.py            # today only
+    python bing_wallpaper.py 8          # the last 8 days
     python bing_wallpaper.py 8 -o D:/Pictures/Bing
 """
 import argparse
@@ -42,8 +42,8 @@ def download(url: str, dest: Path) -> bool:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("count", nargs="?", type=int, default=1, help="下载最近几天的壁纸 (1-8)")
-    ap.add_argument("-o", "--out", default="BingWallpapers", help="保存目录")
+    ap.add_argument("count", nargs="?", type=int, default=1, help="how many recent days to download (1-8)")
+    ap.add_argument("-o", "--out", default="BingWallpapers", help="output directory")
     args = ap.parse_args()
 
     count = max(1, min(args.count, 8))
@@ -56,19 +56,19 @@ def main() -> int:
         stem = safe(f"{img['startdate']}_{img.get('title', 'bing')}")
         dest = out_dir / f"{stem}.jpg"
         if dest.exists() and dest.stat().st_size > 50_000:
-            print(f"跳过（已存在）: {dest.name}")
+            print(f"Skip (already exists): {dest.name}")
             ok += 1
             continue
         for suffix in ("_UHD.jpg", "_1920x1080.jpg"):
             if download("https://www.bing.com" + img["urlbase"] + suffix, dest):
                 size = dest.stat().st_size
-                print(f"已保存: {dest.name}  ({size / 1024 / 1024:.1f} MB)  {img.get('copyright', '')}")
+                print(f"Saved: {dest.name}  ({size / 1024 / 1024:.1f} MB)  {img.get('copyright', '')}")
                 ok += 1
                 break
         else:
-            print(f"失败: {img['startdate']}", file=sys.stderr)
+            print(f"Failed: {img['startdate']}", file=sys.stderr)
 
-    print(f"\n完成 {ok}/{len(images)}，目录: {out_dir.resolve()}")
+    print(f"\nDone {ok}/{len(images)}, dir: {out_dir.resolve()}")
     return 0 if ok else 1
 
 
