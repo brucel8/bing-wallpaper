@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download today's wallpaper
-        run: python3 bing_wallpaper.py 2 -o pics   # today + yesterday as backfill, so one missed run heals itself; existing files are skipped
+        run: python3 bing_wallpaper.py 8 -o pics   # today + yesterday as backfill, so one missed run heals itself; existing files are skipped
 
       - name: Install Pillow
         run: pip install --quiet pillow
