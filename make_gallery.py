@@ -11,13 +11,18 @@ be run manually:
   <!-- GALLERY-END --> is rewritten every run:
   * the latest month is shown expanded as a thumbnail grid
     (4 per row, click a thumbnail to open the full image; every
-    cell also carries a "download 4k" link to the full-size
-    original, like github.com/niumoo/bing-wallpaper)
+    cell also carries a "download 4k" link, like
+    github.com/niumoo/bing-wallpaper — but pointing at this
+    repo's raw file URL, the same URL as the download button
+    on GitHub's file page, so it saves the file directly
+    instead of opening the file page)
   * earlier months are folded into <details> blocks, expanded only
     when the month title is clicked, so the README stays fast to
     open no matter how many images accumulate
 """
 import calendar
+import os
+import subprocess
 from pathlib import Path
 from urllib.parse import quote
 
@@ -32,6 +37,39 @@ THUMB_W = 400
 COLS = 4
 
 
+# Prefix for the "download 4k" links; main() upgrades it to the
+# repo's absolute raw URL when the slug can be determined.
+DL_BASE = "pics/"
+
+
+def raw_base() -> str:
+    """Raw-download base URL for pics/ on GitHub.
+
+    The /raw/refs/heads/<branch>/ URL is the one behind the
+    download button on a file page: GitHub serves it as an
+    attachment, so the browser saves the image instead of
+    opening its page. The slug comes from the GITHUB_REPOSITORY
+    env var in Actions, or from the local git remote otherwise.
+    Falls back to a plain relative link when neither is known.
+    """
+    slug = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if "/" not in slug:
+        try:
+            url = subprocess.check_output(
+                ["git", "-C", str(ROOT), "config", "--get",
+                 "remote.origin.url"],
+                text=True, stderr=subprocess.DEVNULL).strip()
+            url = url.rstrip("/").removesuffix(".git")
+            parts = [p for p in url.replace(":", "/").split("/") if p]
+            slug = "/".join(parts[-2:]) if len(parts) >= 2 else ""
+        except Exception:
+            slug = ""
+    if "/" not in slug:
+        return "pics/"
+    branch = os.environ.get("GITHUB_REF_NAME", "").strip() or "main"
+    return f"https://github.com/{slug}/raw/refs/heads/{branch}/pics/"
+
+
 def month_label(key: str) -> str:
     return f"{calendar.month_name[int(key[4:])]} {key[:4]}"
 
@@ -42,7 +80,7 @@ def table_for(files) -> str:
         date = f"{p.name[:4]}-{p.name[4:6]}-{p.name[6:8]}"
         cells.append(
             f"[![{date}](thumbs/{quote(p.name)})](pics/{quote(p.name)})"
-            f"<br>{date} [download 4k](pics/{quote(p.name)})")
+            f"<br>{date} [download 4k]({DL_BASE}{quote(p.name)})")
     rows = []
     for i in range(0, len(cells), COLS):
         chunk = cells[i:i + COLS]
@@ -52,6 +90,8 @@ def table_for(files) -> str:
 
 
 def main() -> int:
+    global DL_BASE
+    DL_BASE = raw_base()
     THUMBS.mkdir(exist_ok=True)
     files = sorted(PICS.glob("*.jpg"), reverse=True)
     for p in files:
