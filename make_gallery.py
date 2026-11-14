@@ -10,7 +10,9 @@ be run manually:
 - The section of README.md between <!-- GALLERY-START --> and
   <!-- GALLERY-END --> is rewritten every run:
   * the latest month is shown expanded as a thumbnail grid
-    (4 per row, click a thumbnail to open the full image)
+    (4 per row, click a thumbnail to open the full image; every
+    cell also carries a "download 4k" link to the full-size
+    original, like github.com/niumoo/bing-wallpaper)
   * earlier months are folded into <details> blocks, expanded only
     when the month title is clicked, so the README stays fast to
     open no matter how many images accumulate
@@ -40,7 +42,7 @@ def table_for(files) -> str:
         date = f"{p.name[:4]}-{p.name[4:6]}-{p.name[6:8]}"
         cells.append(
             f"[![{date}](thumbs/{quote(p.name)})](pics/{quote(p.name)})"
-            f"<br>{date}")
+            f"<br>{date} [download 4k](pics/{quote(p.name)})")
     rows = []
     for i in range(0, len(cells), COLS):
         chunk = cells[i:i + COLS]
