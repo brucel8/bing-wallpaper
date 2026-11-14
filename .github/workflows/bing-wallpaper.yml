@@ -2,7 +2,7 @@ name: Bing Daily Wallpaper
 
 on:
   schedule:
-    - cron: "15 0 * * 0"   # Sundays 00:15 UTC
+    - cron: "15 0 * * *"   # daily, 00:15 UTC
   workflow_dispatch:        # can also be triggered manually from the Actions tab
 
 permissions:
@@ -14,8 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download the past week's wallpapers
-        run: python3 bing_wallpaper.py 8 -o pics   # last 8 days (past week + 1 spare day; existing files are skipped)
+      - name: Download today's wallpaper
+        run: python3 bing_wallpaper.py 2 -o pics   # today + yesterday as backfill, so one missed run heals itself; existing files are skipped
 
       - name: Install Pillow
         run: pip install --quiet pillow
@@ -37,6 +37,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes (already up to date)"
           else
-            git commit -m "Bing wallpapers week of $(date -u +%F)"
+            git commit -m "Bing wallpaper $(date -u +%F)"
             git push
           fi
