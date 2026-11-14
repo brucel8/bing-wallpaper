@@ -6,7 +6,10 @@
 
 - 缩略图放 thumbs/（宽 400px），只给还没有缩略图的图片生成
 - README.md 中 <!-- GALLERY-START --> 与 <!-- GALLERY-END --> 之间的
-  表格会被整段重写：每行 4 张，点缩略图打开原图
+  内容会被整段重写：
+  * 最近一个月：直接展开成缩略图表格（每行 4 张，点图看原图）
+  * 更早的月份：按月折叠成 <details> 区块，点月份标题才展开，
+    避免 README 越攒越长、打开越来越慢
 """
 from pathlib import Path
 from urllib.parse import quote
@@ -22,6 +25,21 @@ THUMB_W = 400
 COLS = 4
 
 
+def table_for(files) -> str:
+    cells = []
+    for p in files:
+        date = f"{p.name[:4]}-{p.name[4:6]}-{p.name[6:8]}"
+        cells.append(
+            f"[![{date}](thumbs/{quote(p.name)})](pics/{quote(p.name)})"
+            f"<br>{date}")
+    rows = []
+    for i in range(0, len(cells), COLS):
+        chunk = cells[i:i + COLS]
+        chunk += [""] * (COLS - len(chunk))
+        rows.append("| " + " | ".join(chunk) + " |")
+    return "| | | | |\n|---|---|---|---|\n" + "\n".join(rows)
+
+
 def main() -> int:
     THUMBS.mkdir(exist_ok=True)
     files = sorted(PICS.glob("*.jpg"), reverse=True)
@@ -34,29 +52,35 @@ def main() -> int:
             w, h = im.size
             im.resize((THUMB_W, max(1, int(h * THUMB_W / w)))).save(
                 t, quality=82)
-    cells = []
+
+    months = {}
     for p in files:
-        date = f"{p.name[:4]}-{p.name[4:6]}-{p.name[6:8]}"
-        cells.append(
-            f"[![{date}](thumbs/{quote(p.name)})](pics/{quote(p.name)})"
-            f"<br>{date}")
-    if cells:
-        rows = []
-        for i in range(0, len(cells), COLS):
-            chunk = cells[i:i + COLS]
-            chunk += [""] * (COLS - len(chunk))
-            rows.append("| " + " | ".join(chunk) + " |")
-        table = "| | | | |\n|---|---|---|---|\n" + "\n".join(rows)
+        months.setdefault(p.name[:6], []).append(p)
+    keys = sorted(months, reverse=True)
+
+    if not keys:
+        gallery = "_暂无图片_"
     else:
-        table = "_暂无图片_"
+        parts = []
+        latest = keys[0]
+        parts.append(
+            f"### {latest[:4]} 年 {int(latest[4:])} 月（最近一个月）\n\n"
+            + table_for(months[latest]))
+        for k in keys[1:]:
+            label = f"{k[:4]} 年 {int(k[4:])} 月 · 共 {len(months[k])} 张"
+            parts.append(
+                f"<details>\n<summary>{label}（点击展开）</summary>\n\n"
+                + table_for(months[k]) + "\n\n</details>")
+        gallery = "\n\n".join(parts)
+
     text = README.read_text(encoding="utf-8")
     pre, sep, rest = text.partition(START)
     if not sep:
         raise SystemExit("README.md 里找不到 GALLERY 标记")
     _, _, post = rest.partition(END)
-    README.write_text(pre + START + "\n\n" + table + "\n\n" + END + post,
+    README.write_text(pre + START + "\n\n" + gallery + "\n\n" + END + post,
                       encoding="utf-8")
-    print(f"gallery updated: {len(files)} images")
+    print(f"gallery updated: {len(files)} images, {len(keys)} months")
     return 0
 
 
