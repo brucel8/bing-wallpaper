@@ -19,10 +19,19 @@ be run manually:
   * earlier months are folded into <details> blocks, expanded only
     when the month title is clicked, so the README stays fast to
     open no matter how many images accumulate
+- A second generated section, between <!-- ARCHIVES-START --> and
+  <!-- ARCHIVES-END --> (appended at the end of README.md when the
+  markers are not there yet), lists every completed month with a
+  direct-download link to that month's zip in Releases — the
+  monthly-archive workflow publishes tag YYYY-MM with asset
+  bing-wallpapers-YYYY-MM.zip on the 1st of each month. The
+  current, still-running month is not listed: its zip does not
+  exist yet, so the link would be dead.
 """
 import calendar
 import os
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -33,6 +42,7 @@ PICS = ROOT / "pics"
 THUMBS = ROOT / "thumbs"
 README = ROOT / "README.md"
 START, END = "<!-- GALLERY-START -->", "<!-- GALLERY-END -->"
+A_START, A_END = "<!-- ARCHIVES-START -->", "<!-- ARCHIVES-END -->"
 THUMB_W = 400
 COLS = 4
 
@@ -42,32 +52,69 @@ COLS = 4
 DL_BASE = "pics/"
 
 
+def repo_slug() -> str:
+    """The repo's owner/name slug, or "" when it cannot be told.
+
+    Comes from the GITHUB_REPOSITORY env var in Actions, or from
+    the local git remote otherwise.
+    """
+    slug = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if "/" in slug:
+        return slug
+    try:
+        url = subprocess.check_output(
+            ["git", "-C", str(ROOT), "config", "--get",
+             "remote.origin.url"],
+            text=True, stderr=subprocess.DEVNULL).strip()
+        url = url.rstrip("/").removesuffix(".git")
+        parts = [p for p in url.replace(":", "/").split("/") if p]
+        slug = "/".join(parts[-2:]) if len(parts) >= 2 else ""
+    except Exception:
+        slug = ""
+    return slug if "/" in slug else ""
+
+
 def raw_base() -> str:
     """Raw-download base URL for pics/ on GitHub.
 
     The /raw/refs/heads/<branch>/ URL is the one behind the
     download button on a file page: GitHub serves it as an
     attachment, so the browser saves the image instead of
-    opening its page. The slug comes from the GITHUB_REPOSITORY
-    env var in Actions, or from the local git remote otherwise.
-    Falls back to a plain relative link when neither is known.
+    opening its page. Falls back to a plain relative link when
+    the repo slug is unknown.
     """
-    slug = os.environ.get("GITHUB_REPOSITORY", "").strip()
-    if "/" not in slug:
-        try:
-            url = subprocess.check_output(
-                ["git", "-C", str(ROOT), "config", "--get",
-                 "remote.origin.url"],
-                text=True, stderr=subprocess.DEVNULL).strip()
-            url = url.rstrip("/").removesuffix(".git")
-            parts = [p for p in url.replace(":", "/").split("/") if p]
-            slug = "/".join(parts[-2:]) if len(parts) >= 2 else ""
-        except Exception:
-            slug = ""
-    if "/" not in slug:
+    slug = repo_slug()
+    if not slug:
         return "pics/"
     branch = os.environ.get("GITHUB_REF_NAME", "").strip() or "main"
     return f"https://github.com/{slug}/raw/refs/heads/{branch}/pics/"
+
+
+def archives_for(months, keys) -> str:
+    """The 'Monthly archives' section: one direct-download link
+    per completed month, pointing at the zip the monthly-archive
+    workflow publishes in Releases (tag YYYY-MM, asset
+    bing-wallpapers-YYYY-MM.zip — clicking downloads the zip
+    straight away, no intermediate page)."""
+    now_key = datetime.now(timezone.utc).strftime("%Y%m")
+    done = [k for k in keys if k < now_key]
+    parts = ["## Monthly archives\n\n"
+             "Every completed month's wallpapers bundled as one zip "
+             "in Releases — click a month to download it directly:"]
+    if not done:
+        parts.append("_No archives yet — the first monthly zip is "
+                     "published in Releases on the 1st of next month._")
+    slug = repo_slug()
+    for k in done:
+        ym = f"{k[:4]}-{k[4:]}"
+        label = f"{month_label(k)} · {len(months[k])} images"
+        if slug:
+            url = (f"https://github.com/{slug}/releases/download/"
+                   f"{ym}/bing-wallpapers-{ym}.zip")
+            parts.append(f"- [{label}]({url})")
+        else:
+            parts.append(f"- {label}")
+    return "\n\n".join(parts)
 
 
 def month_label(key: str) -> str:
@@ -129,8 +176,16 @@ def main() -> int:
     if not sep:
         raise SystemExit("GALLERY markers not found in README.md")
     _, _, post = rest.partition(END)
-    README.write_text(pre + START + "\n\n" + gallery + "\n\n" + END + post,
-                      encoding="utf-8")
+    text = pre + START + "\n\n" + gallery + "\n\n" + END + post
+
+    block = A_START + "\n\n" + archives_for(months, keys) + "\n\n" + A_END
+    if A_START in text:
+        pre, _, rest = text.partition(A_START)
+        _, _, post = rest.partition(A_END)
+        text = pre + block + post
+    else:
+        text = text.rstrip("\n") + "\n\n" + block + "\n"
+    README.write_text(text, encoding="utf-8")
     print(f"gallery updated: {len(files)} images, {len(keys)} months")
     return 0
 
