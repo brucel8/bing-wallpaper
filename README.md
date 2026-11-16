@@ -30,3 +30,13 @@ Every day, GitHub Actions downloads the latest Bing daily wallpaper (4K UHD, fal
 
 - Schedule: daily at 00:15 UTC. Each run fetches the last 2 days (today plus yesterday as backfill, so a single missed run heals itself; images already present are skipped). On the 1st of each month, the previous month is also zipped into a Release. Scheduled runs may start some minutes late when GitHub is busy — that is normal.
 - A UHD image is about 1–3 MB, so the repository grows by roughly 0.5–1 GB per year.
+
+<!-- ARCHIVES-START -->
+
+## Monthly archives
+
+Every completed month's wallpapers bundled as one zip in Releases — click a month to download it directly:
+
+_No archives yet — the first monthly zip is published in Releases on the 1st of next month._
+
+<!-- ARCHIVES-END -->
